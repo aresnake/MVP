@@ -1,1 +1,14 @@
-
+__pycache__/
+*.pyc
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+Thumbs.db
+Desktop.ini
+*.blend1
+*.blend2
+*.blend@
+*.log

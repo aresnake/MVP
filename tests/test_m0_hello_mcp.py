@@ -41,6 +41,17 @@ async def test_m0_server_serves_tools_and_responds():
             echoed_texts = [block.text for block in echo_result.content if hasattr(block, "text")]
             assert "ping" in echoed_texts
 
+            created_contract = await client.call_tool(
+                "contract.create",
+                {
+                    "host_profile": "host-m0",
+                    "runtime_profile": "rt-m0",
+                    "capabilities": ["DATA_ONLY"],
+                    "tool_allowlist": ["workspace.list_files"],
+                },
+            )
+            assert not created_contract.isError
+
             list_result = await client.call_tool("workspace.list_files", {"max_depth": 1})
             assert not list_result.isError
             files = list_result.structuredContent["files"]

@@ -31,3 +31,9 @@ See:
 - Run tests: `python -m pytest -q`
 
 If you run `python -m mvp.server` directly in a shell, it will log a short reminder that it expects a MCP client and then wait; closing stdin or pressing Ctrl+C exits cleanly.
+
+## Session Contracts
+- Tools are gated until a session contract exists. Without one, only `system.health`, `echo`, and `contract.create/get_active` are allowed; other tools return `code: contract_required`.
+- Create a contract by calling `contract.create` with `host_profile`, `runtime_profile`, optional `capabilities` (DATA_ONLY/UI_LIVE), and optional `tool_allowlist`.
+- When `tool_allowlist` is set, only listed tools run; others return `code: tool_not_allowed`.
+- Example (PowerShell + MCP client): start server with `python -m mvp.server`, then from the client call `contract.create` with `{"host_profile":"dev","runtime_profile":"rt","capabilities":["DATA_ONLY"],"tool_allowlist":["workspace.list_files"]}` before invoking `workspace.list_files`.

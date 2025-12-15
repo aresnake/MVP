@@ -8,10 +8,36 @@ from pathlib import Path
 from typing import Iterable
 
 from mcp.server.fastmcp import FastMCP
+from mcp import types
 
 from . import __version__
+from .contracts import SessionContract
 
 IGNORED_NAMES = {".git", ".venv", "__pycache__"}
+
+_active_contract: SessionContract | None = None
+_TOOLS_ALWAYS_ALLOWED = {"system.health", "echo", "contract.create", "contract.get_active"}
+
+
+def _contract_error(code: str, message: str) -> types.CallToolResult:
+    return types.CallToolResult(
+        content=[types.TextContent(type="text", text=message)],
+        structuredContent={"code": code, "message": message},
+        isError=True,
+    )
+
+
+def _maybe_gate(tool_name: str) -> types.CallToolResult | None:
+    if tool_name in _TOOLS_ALWAYS_ALLOWED:
+        return None
+
+    if _active_contract is None:
+        return _contract_error("contract_required", "An active session contract is required.")
+
+    if _active_contract.tool_allowlist is not None and tool_name not in _active_contract.tool_allowlist:
+        return _contract_error("tool_not_allowed", f"Tool '{tool_name}' is not allowed by the active contract.")
+
+    return None
 
 
 def register_tools(server: FastMCP, workspace_root: Path) -> None:
@@ -55,3 +81,40 @@ def register_tools(server: FastMCP, workspace_root: Path) -> None:
 
         files.sort()
         return {"files": files}
+
+    @server.tool(
+        name="contract.create",
+        description="Create a session contract to gate subsequent tool calls.",
+    )
+    def contract_create(
+        host_profile: str,
+        runtime_profile: str,
+        capabilities: list[str] | None = None,
+        tool_allowlist: list[str] | None = None,
+    ) -> SessionContract:
+        global _active_contract
+        _active_contract = SessionContract.create(
+            host_profile=host_profile,
+            runtime_profile=runtime_profile,
+            capabilities=capabilities or [],
+            tool_allowlist=tool_allowlist,
+        )
+        return _active_contract
+
+    @server.tool(
+        name="contract.get_active",
+        description="Return the active session contract, if any.",
+    )
+    def contract_get_active() -> SessionContract | None:
+        return _active_contract
+
+    original_call_handler = server._mcp_server.request_handlers.get(types.CallToolRequest)
+
+    async def gated_call_tool(req: types.CallToolRequest):
+        tool_name = req.params.name
+        if error := _maybe_gate(tool_name):
+            return types.ServerResult(error)
+        assert original_call_handler is not None
+        return await original_call_handler(req)
+
+    server._mcp_server.request_handlers[types.CallToolRequest] = gated_call_tool

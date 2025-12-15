@@ -23,3 +23,8 @@ See:
 - docs/SCOPE.md
 - docs/ARCHITECTURE.md
 - docs/TOOLING_POLICY.md
+
+## Run M0
+- Install deps (editable optional): `pip install -e .`
+- Start the stdio server: `python -m mvp.server`
+- Run tests: `python -m pytest -q`

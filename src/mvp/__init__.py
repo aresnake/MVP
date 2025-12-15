@@ -1,3 +1,7 @@
-# Spec-first package
+"""
+MVP core package.
+"""
 
-This package is intentionally minimal. Runtime/server/bridge code will be added only after contracts/schemas are stable.
+__version__ = "0.1.0"
+
+__all__ = ["__version__"]

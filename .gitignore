@@ -12,3 +12,4 @@ Desktop.ini
 *.blend2
 *.blend@
 *.log
+.runtime/

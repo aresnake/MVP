@@ -26,7 +26,7 @@ async def test_runtime_probe_requires_contract_and_capability_and_runtime():
             # No contract yet -> denied
             denied = await client.call_tool("runtime.probe", {})
             assert denied.isError
-            assert denied.structuredContent["code"] == "contract_required"
+            assert denied.structuredContent["error"]["code"] == "contract_required"
 
             # Contract created but default runtime is null -> runtime unavailable
             await client.call_tool(
@@ -40,7 +40,7 @@ async def test_runtime_probe_requires_contract_and_capability_and_runtime():
             )
             unavailable = await client.call_tool("runtime.probe", {})
             assert unavailable.isError
-            assert unavailable.structuredContent["code"] == "runtime_unavailable"
+            assert unavailable.structuredContent["error"]["code"] == "runtime_unavailable"
 
 
 @pytest.mark.anyio
@@ -68,9 +68,9 @@ async def test_scene_list_objects_with_inmemory_runtime():
             )
             probe = await client.call_tool("runtime.probe", {})
             assert not probe.isError
-            assert probe.structuredContent["name"] == "in-memory-runtime"
+            assert probe.structuredContent["result"]["name"] == "in-memory-runtime"
 
             listed = await client.call_tool("scene.list_objects", {})
             assert not listed.isError
-            names = {obj["name"] for obj in listed.structuredContent["objects"]}
+            names = {obj["name"] for obj in listed.structuredContent["result"]["objects"]}
             assert {"Cube", "Camera"} <= names

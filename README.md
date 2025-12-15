@@ -50,3 +50,10 @@ If you run `python -m mvp.server` directly in a shell, it will log a short remin
 ## Contracts v1.0
 - Contracts now include `contract_version` (defaults to `1.0`) and strict capabilities (`DATA_ONLY`, `UI_LIVE`). `UI_LIVE` requires `DATA_ONLY`.
 - Capabilities drive gating alongside allowlists; runtime tools require `DATA_ONLY`.
+
+## Error schema v1
+- All tool responses use `{ "ok": true, "result": ... }` on success and `{ "ok": false, "error": { code, message, details?, hint?, retryable } }` on failure.
+- Stable error codes: `contract_required`, `tool_not_allowed`, `capability_required`, `runtime_unavailable`, `invalid_request`, `internal_error`.
+
+## Tool catalog
+- `system.tools_catalog` (not gated) lists available tools with descriptions, gating flags (requires contract, required capabilities, allowlist respected), and minimal input/output schemas.

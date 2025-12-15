@@ -8,6 +8,8 @@ from typing import Protocol
 
 from mcp import types
 
+from .errors import MvpErrorCode, err
+
 
 class RuntimeUnavailableError(Exception):
     """Raised when a runtime adapter cannot serve a request."""
@@ -70,6 +72,6 @@ def get_runtime() -> RuntimeAdapter:
 def runtime_error(message: str) -> types.CallToolResult:
     return types.CallToolResult(
         content=[types.TextContent(type="text", text=message)],
-        structuredContent={"code": "runtime_unavailable", "message": message},
+        structuredContent=err(MvpErrorCode.runtime_unavailable, message),
         isError=True,
     )

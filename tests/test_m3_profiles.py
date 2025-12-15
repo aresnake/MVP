@@ -31,7 +31,7 @@ async def test_profiles_resolve_and_capabilities_are_versioned():
                 },
             )
             assert not created.isError
-            contract = created.structuredContent
+            contract = created.structuredContent["result"]
             assert contract["contract_version"] == "1.0"
             assert "DATA_ONLY" in contract["capabilities"]
             assert contract["host_profile"] == "codex_stdio"
@@ -60,4 +60,4 @@ async def test_capability_hierarchy_enforced():
                 },
             )
             assert result.isError
-            assert any("UI_LIVE requires DATA_ONLY" in block.text for block in result.content if hasattr(block, "text"))
+            assert result.structuredContent["error"]["code"] == "invalid_request"

@@ -34,12 +34,12 @@ async def test_m0_server_serves_tools_and_responds():
             health_result = await client.call_tool("system.health", {})
             assert not health_result.isError
             assert health_result.structuredContent["ok"] is True
-            assert health_result.structuredContent["name"] == "mvp"
-            assert health_result.structuredContent["version"] == __version__
+            assert health_result.structuredContent["result"]["name"] == "mvp"
+            assert health_result.structuredContent["result"]["version"] == __version__
 
             echo_result = await client.call_tool("echo", {"text": "ping"})
-            echoed_texts = [block.text for block in echo_result.content if hasattr(block, "text")]
-            assert "ping" in echoed_texts
+            assert echo_result.structuredContent["ok"] is True
+            assert echo_result.structuredContent["result"] == "ping"
 
             created_contract = await client.call_tool(
                 "contract.create",
@@ -51,11 +51,11 @@ async def test_m0_server_serves_tools_and_responds():
                 },
             )
             assert not created_contract.isError
-            assert created_contract.structuredContent["contract_version"] == "1.0"
+            assert created_contract.structuredContent["result"]["contract_version"] == "1.0"
 
             list_result = await client.call_tool("workspace.list_files", {"max_depth": 1})
             assert not list_result.isError
-            files = list_result.structuredContent["files"]
+            files = list_result.structuredContent["result"]["files"]
             assert any(path.endswith("pyproject.toml") for path in files)
             for path in files:
                 parts = Path(path).parts

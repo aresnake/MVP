@@ -13,13 +13,14 @@ from mcp import types
 
 from . import __version__
 from .contracts import Capability, SessionContract
+from .errors import MvpErrorCode, err
 from .runtime import NullRuntimeAdapter, get_runtime, runtime_error
 from .profiles import get_host_profile, get_runtime_profile
 
 IGNORED_NAMES = {".git", ".venv", "__pycache__"}
 
 _active_contract: SessionContract | None = None
-_TOOLS_ALWAYS_ALLOWED = {"system.health", "echo", "contract.create", "contract.get_active"}
+_TOOLS_ALWAYS_ALLOWED = {"system.health", "echo", "contract.create", "contract.get_active", "system.tools_catalog"}
 _CAPABILITY_REQUIREMENTS = {
     "runtime.probe": "DATA_ONLY",
     "scene.list_objects": "DATA_ONLY",
@@ -30,15 +31,16 @@ _RUNTIME_TOOLS = {"runtime.probe", "scene.list_objects"}
 def _contract_error(code: str, message: str) -> types.CallToolResult:
     return types.CallToolResult(
         content=[types.TextContent(type="text", text=message)],
-        structuredContent={"code": code, "message": message},
+        structuredContent=err(MvpErrorCode(code), message),
         isError=True,
     )
 
 
 def _success_payload(data: object) -> types.CallToolResult:
+    payload = {"ok": True, "result": data}
     return types.CallToolResult(
-        content=[types.TextContent(type="text", text=json.dumps(data, indent=2))],
-        structuredContent=data,
+        content=[types.TextContent(type="text", text=json.dumps(payload, indent=2))],
+        structuredContent=payload,
         isError=False,
     )
 
@@ -48,7 +50,7 @@ def _maybe_gate(tool_name: str) -> types.CallToolResult | None:
         return None
 
     if _active_contract is None:
-        return _contract_error("contract_required", "An active session contract is required.")
+        return _contract_error(MvpErrorCode.contract_required.value, "An active session contract is required.")
 
     if _active_contract.tool_allowlist is not None and tool_name not in _active_contract.tool_allowlist:
         return _contract_error("tool_not_allowed", f"Tool '{tool_name}' is not allowed by the active contract.")
@@ -57,7 +59,7 @@ def _maybe_gate(tool_name: str) -> types.CallToolResult | None:
         cap_values = {cap.value for cap in _active_contract.capabilities}
         if required_cap not in cap_values:
             return _contract_error(
-                "capability_required",
+                MvpErrorCode.capability_required.value,
                 f"Capability '{required_cap}' is required by this tool.",
             )
 
@@ -70,18 +72,18 @@ def register_tools(server: FastMCP, workspace_root: Path) -> None:
     """
 
     @server.tool(name="system.health", description="Return basic health information for the MVP core.")
-    def system_health() -> dict[str, object]:
-        return {"ok": True, "name": "mvp", "version": __version__}
+    def system_health() -> types.CallToolResult:
+        return _success_payload({"name": "mvp", "version": __version__})
 
     @server.tool(name="echo", description="Echo the provided text.")
-    def echo(text: str) -> str:
-        return text
+    def echo(text: str) -> types.CallToolResult:
+        return _success_payload(text)
 
     @server.tool(
         name="workspace.list_files",
         description="List files under the workspace root up to a maximum depth.",
     )
-    def workspace_list_files(max_depth: int = 3) -> dict[str, list[str]]:
+    def workspace_list_files(max_depth: int = 3) -> types.CallToolResult:
         if max_depth < 0:
             raise ValueError("max_depth must be non-negative")
 
@@ -104,7 +106,7 @@ def register_tools(server: FastMCP, workspace_root: Path) -> None:
             files.append(path.relative_to(root).as_posix())
 
         files.sort()
-        return {"files": files}
+        return _success_payload({"files": files})
 
     @server.tool(
         name="contract.create",
@@ -115,7 +117,7 @@ def register_tools(server: FastMCP, workspace_root: Path) -> None:
         runtime_profile: str,
         capabilities: list[str] | None = None,
         tool_allowlist: list[str] | None = None,
-    ) -> SessionContract:
+    ) -> types.CallToolResult:
         global _active_contract
         resolved: dict[str, object] = {}
 
@@ -131,23 +133,31 @@ def register_tools(server: FastMCP, workspace_root: Path) -> None:
         else:
             runtime_profile_name = runtime_profile
 
-        _active_contract = SessionContract.create(
-            host_profile=host_profile_name,
-            runtime_profile=runtime_profile_name,
-            capabilities=capabilities or [],
-            tool_allowlist=tool_allowlist,
-        )
-        payload = _active_contract.model_dump(mode="json")
-        if resolved:
-            payload["resolved"] = resolved
-        return _success_payload(payload)
+        try:
+            _active_contract = SessionContract.create(
+                host_profile=host_profile_name,
+                runtime_profile=runtime_profile_name,
+                capabilities=capabilities or [],
+                tool_allowlist=tool_allowlist,
+            )
+            payload = _active_contract.model_dump(mode="json")
+            if resolved:
+                payload["resolved"] = resolved
+            return _success_payload(payload)
+        except ValueError as exc:
+            return types.CallToolResult(
+                content=[types.TextContent(type="text", text=str(exc))],
+                structuredContent=err(MvpErrorCode.invalid_request, str(exc)),
+                isError=True,
+            )
 
     @server.tool(
         name="contract.get_active",
         description="Return the active session contract, if any.",
     )
-    def contract_get_active() -> SessionContract | None:
-        return _active_contract
+    def contract_get_active() -> types.CallToolResult:
+        payload = _active_contract.model_dump(mode="json") if _active_contract else None
+        return _success_payload(payload)
 
     @server.tool(
         name="runtime.probe",
@@ -155,7 +165,10 @@ def register_tools(server: FastMCP, workspace_root: Path) -> None:
     )
     def runtime_probe() -> types.CallToolResult:
         adapter = get_runtime()
-        return _success_payload(adapter.probe())
+        try:
+            return _success_payload(adapter.probe())
+        except Exception as exc:  # pragma: no cover - guarded
+            return runtime_error(str(exc))
 
     @server.tool(
         name="scene.list_objects",
@@ -163,12 +176,36 @@ def register_tools(server: FastMCP, workspace_root: Path) -> None:
     )
     def scene_list_objects() -> types.CallToolResult:
         adapter = get_runtime()
-        objects = adapter.list_scene_objects()
-        return types.CallToolResult(
-            content=[types.TextContent(type="text", text=json.dumps(objects, indent=2))],
-            structuredContent={"objects": objects},
-            isError=False,
-        )
+        try:
+            objects = adapter.list_scene_objects()
+            return _success_payload({"objects": objects})
+        except Exception as exc:  # pragma: no cover - guarded
+            return runtime_error(str(exc))
+
+    @server.tool(
+        name="system.tools_catalog",
+        description="List available tools and their gating metadata.",
+    )
+    def system_tools_catalog() -> types.CallToolResult:
+        tools = []
+        for tool in server._tool_manager.list_tools():
+            name = tool.name
+            tools.append(
+                {
+                    "name": name,
+                    "description": tool.description,
+                    "gating": {
+                        "requires_contract": name not in _TOOLS_ALWAYS_ALLOWED,
+                        "required_capabilities": [_CAPABILITY_REQUIREMENTS[name]]
+                        if name in _CAPABILITY_REQUIREMENTS
+                        else [],
+                        "allowlist_respected": name not in _TOOLS_ALWAYS_ALLOWED,
+                    },
+                    "input_schema": tool.parameters,
+                    "output_schema": tool.output_schema,
+                }
+            )
+        return _success_payload({"tools": tools})
 
     original_call_handler = server._mcp_server.request_handlers.get(types.CallToolRequest)
 

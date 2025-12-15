@@ -25,7 +25,7 @@ async def test_contract_gates_tools_and_allows_with_allowlist():
             # Without a contract, workspace.list_files should be rejected
             denied = await client.call_tool("workspace.list_files", {"max_depth": 1})
             assert denied.isError
-            assert denied.structuredContent["code"] == "contract_required"
+            assert denied.structuredContent["error"]["code"] == "contract_required"
 
             # Create a contract that allows workspace.list_files
             created = await client.call_tool(
@@ -38,7 +38,7 @@ async def test_contract_gates_tools_and_allows_with_allowlist():
                 },
             )
             assert not created.isError
-            contract = created.structuredContent
+            contract = created.structuredContent["result"]
             assert contract["host_profile"] == "host-a"
             assert contract["runtime_profile"] == "rt-a"
             assert contract["contract_id"]
@@ -47,4 +47,4 @@ async def test_contract_gates_tools_and_allows_with_allowlist():
             # Now the tool should succeed
             allowed = await client.call_tool("workspace.list_files", {"max_depth": 1})
             assert not allowed.isError
-            assert isinstance(allowed.structuredContent["files"], list)
+            assert isinstance(allowed.structuredContent["result"]["files"], list)

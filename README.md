@@ -25,6 +25,9 @@ See:
 - docs/TOOLING_POLICY.md
 
 ## Run M0
-- Install deps (editable optional): `pip install -e .`
-- Start the stdio server: `python -m mvp.server`
+- Install deps (editable optional): `python -m pip install -e .`
+- Dev deps (lint/tests): `python -m pip install -e ".[dev]"`
+- Start the stdio server (waits for a MCP client and prints a hint): `python -m mvp.server`
 - Run tests: `python -m pytest -q`
+
+If you run `python -m mvp.server` directly in a shell, it will log a short reminder that it expects a MCP client and then wait; closing stdin or pressing Ctrl+C exits cleanly.

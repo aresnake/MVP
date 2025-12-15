@@ -5,6 +5,7 @@ Minimal MCP stdio server exposing the M0 tool surface.
 from __future__ import annotations
 
 import logging
+import sys
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
@@ -29,7 +30,17 @@ def build_server(workspace_root: Path | None = None) -> FastMCP:
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     server = build_server()
-    server.run(transport="stdio")
+    logging.info("MVP stdio server expects a MCP client (Claude Desktop, Codex, etc.). Waiting on stdio...")
+    try:
+        server.run(transport="stdio")
+    except KeyboardInterrupt:
+        logging.info("Received interrupt, shutting down.")
+        sys.exit(130)
+    except (BrokenPipeError, EOFError):
+        logging.info("Stdio closed, exiting.")
+    except Exception as exc:  # pragma: no cover - defensive guard
+        logging.error("Server stopped unexpectedly: %s", exc)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

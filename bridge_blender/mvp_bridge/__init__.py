@@ -78,6 +78,9 @@ def _read_until_id(proc: subprocess.Popen, target_id: int, timeout_lines: int = 
 
 
 def call_mcp_move_cube():
+    if os.environ.get("MVP_MCP_EXTERNAL") != "1":
+        return "skip", "MCP skipped (in-process UI)"
+
     python_exe = _python_executable()
     cmd = [python_exe, "-m", "mvp.mcp_stdio"]
     try:
@@ -121,19 +124,19 @@ def call_mcp_move_cube():
         )
         call_resp = _read_until_id(proc, 2)
         if not call_resp:
-            return False, "no response to tools/call"
+            return "fail", "no response to tools/call"
         if "error" in call_resp:
-            return False, f"RPC error: {call_resp['error']}"
+            return "fail", f"RPC error: {call_resp['error']}"
 
         result = call_resp.get("result") or {}
         structured = result.get("structuredContent")
         if structured and structured.get("ok"):
             pos = structured.get("result", {}).get("position")
-            return True, f"{TARGET_NAME} -> {pos}"
+            return "ok", f"MCP OK (external server): {TARGET_NAME} -> {pos}"
         else:
-            return False, f"tool returned error: {structured or result}"
+            return "fail", f"tool returned error: {structured or result}"
     except Exception as exc:  # pragma: no cover - Blender UI path
-        return False, f"exception during MCP call: {exc}"
+        return "fail", f"exception during MCP call: {exc}"
     finally:
         try:
             if proc.stdin:
@@ -150,9 +153,9 @@ class MVP_OT_move_cube(bpy.types.Operator):
     bl_options = {"REGISTER"}
 
     def execute(self, context):
-        ok, message = call_mcp_move_cube()
-        if ok:
-            self.report({"INFO"}, f"MCP OK: {message}")
+        state, message = call_mcp_move_cube()
+        if state == "ok":
+            self.report({"INFO"}, message)
             return {"FINISHED"}
 
         # Fallback: local data-first move
@@ -161,7 +164,10 @@ class MVP_OT_move_cube(bpy.types.Operator):
             cube.location.x = TARGET_POS[0]
             cube.location.y = TARGET_POS[1]
             cube.location.z = TARGET_POS[2]
-            self.report({"INFO"}, f"MCP FAILED, used fallback: {message} (now at {tuple(cube.location)})")
+            if state == "skip":
+                self.report({"INFO"}, f"{message}; used fallback -> {tuple(cube.location)}")
+            else:
+                self.report({"INFO"}, f"MCP FAILED, used fallback: {message} (now at {tuple(cube.location)})")
             return {"FINISHED"}
         except Exception as exc:  # pragma: no cover - Blender UI path
             self.report({"ERROR"}, f"MCP FAILED and fallback failed: {message}; {exc}")

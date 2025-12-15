@@ -17,7 +17,8 @@ DEV-ONLY Blender add-on that mirrors the MVP move-cube logic inside the UI. No M
 - Geometry is built data-first (no `bpy.ops`), ensuring deterministic cube creation.
 
 ## MCP stdio path (optional)
-- The button first tries to call the MCP stdio tool via a subprocess (`python -m mvp.mcp_stdio`).
+- By default, MCP is **skipped** inside the Blender UI to avoid self-spawning Blender (`MCP skipped (in-process UI)`), and the button uses the local fallback.
+- To enable an external MCP stdio call, set `MVP_MCP_EXTERNAL=1` (assumes an MCP server can be spawned or is acceptable to spawn from Blender). The add-on will call `python -m mvp.mcp_stdio`.
 - Environment override: set `MVP_PYTHON_EXE` to the Python executable that has `mvp` installed (defaults to `sys.executable` inside Blender).
 - If the MCP roundtrip fails, the add-on falls back to local data-first move inside Blender.
 - `BLENDER_EXE` is not required for this UI flow; Blender is already running in-process.

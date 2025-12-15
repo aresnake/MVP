@@ -51,6 +51,7 @@ async def test_m0_server_serves_tools_and_responds():
                 },
             )
             assert not created_contract.isError
+            assert created_contract.structuredContent["contract_version"] == "1.0"
 
             list_result = await client.call_tool("workspace.list_files", {"max_depth": 1})
             assert not list_result.isError

@@ -32,8 +32,8 @@ async def test_runtime_probe_requires_contract_and_capability_and_runtime():
             await client.call_tool(
                 "contract.create",
                 {
-                    "host_profile": "host-runtime",
-                    "runtime_profile": "rt-runtime",
+                    "host_profile": "codex_stdio",
+                    "runtime_profile": "none",
                     "capabilities": ["DATA_ONLY"],
                     "tool_allowlist": ["runtime.probe", "scene.list_objects"],
                 },
@@ -60,8 +60,8 @@ async def test_scene_list_objects_with_inmemory_runtime():
             await client.call_tool(
                 "contract.create",
                 {
-                    "host_profile": "host-runtime",
-                    "runtime_profile": "rt-runtime",
+                    "host_profile": "codex_stdio",
+                    "runtime_profile": "inmemory",
                     "capabilities": ["DATA_ONLY"],
                     "tool_allowlist": ["runtime.probe", "scene.list_objects"],
                 },

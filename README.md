@@ -42,3 +42,11 @@ If you run `python -m mvp.server` directly in a shell, it will log a short remin
 - MVP ships with no real runtime; adapters are injected.
 - Default adapter is null and returns `runtime_unavailable`; runtime tools are still gated by session contracts and capabilities (DATA_ONLY).
 - An in-memory adapter is available for tests/dev via `MVP_RUNTIME=inmemory` environment variable when starting the server; real runtimes (e.g., Blender) would live outside this core.
+
+## Profiles
+- Built-in host profile: `codex_stdio` (transport `stdio`). Built-in runtime profiles: `none` (data_only) and `inmemory` (data_only, for dev/tests).
+- `contract.create` will validate/resolve known profile names and include a `resolved` section in its response when matches are found.
+
+## Contracts v1.0
+- Contracts now include `contract_version` (defaults to `1.0`) and strict capabilities (`DATA_ONLY`, `UI_LIVE`). `UI_LIVE` requires `DATA_ONLY`.
+- Capabilities drive gating alongside allowlists; runtime tools require `DATA_ONLY`.

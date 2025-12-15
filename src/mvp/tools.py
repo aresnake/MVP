@@ -12,8 +12,9 @@ from mcp.server.fastmcp import FastMCP
 from mcp import types
 
 from . import __version__
-from .contracts import SessionContract
+from .contracts import Capability, SessionContract
 from .runtime import NullRuntimeAdapter, get_runtime, runtime_error
+from .profiles import get_host_profile, get_runtime_profile
 
 IGNORED_NAMES = {".git", ".venv", "__pycache__"}
 
@@ -53,7 +54,8 @@ def _maybe_gate(tool_name: str) -> types.CallToolResult | None:
         return _contract_error("tool_not_allowed", f"Tool '{tool_name}' is not allowed by the active contract.")
 
     if required_cap := _CAPABILITY_REQUIREMENTS.get(tool_name):
-        if required_cap not in _active_contract.capabilities:
+        cap_values = {cap.value for cap in _active_contract.capabilities}
+        if required_cap not in cap_values:
             return _contract_error(
                 "capability_required",
                 f"Capability '{required_cap}' is required by this tool.",
@@ -115,13 +117,30 @@ def register_tools(server: FastMCP, workspace_root: Path) -> None:
         tool_allowlist: list[str] | None = None,
     ) -> SessionContract:
         global _active_contract
+        resolved: dict[str, object] = {}
+
+        if host := get_host_profile(host_profile):
+            resolved["host"] = host.model_dump()
+            host_profile_name = host.name
+        else:
+            host_profile_name = host_profile
+
+        if runtime := get_runtime_profile(runtime_profile):
+            resolved["runtime"] = runtime.model_dump()
+            runtime_profile_name = runtime.name
+        else:
+            runtime_profile_name = runtime_profile
+
         _active_contract = SessionContract.create(
-            host_profile=host_profile,
-            runtime_profile=runtime_profile,
+            host_profile=host_profile_name,
+            runtime_profile=runtime_profile_name,
             capabilities=capabilities or [],
             tool_allowlist=tool_allowlist,
         )
-        return _active_contract
+        payload = _active_contract.model_dump(mode="json")
+        if resolved:
+            payload["resolved"] = resolved
+        return _success_payload(payload)
 
     @server.tool(
         name="contract.get_active",

@@ -19,6 +19,7 @@ class RuntimeProfile(BaseModel):
     name: str
     mode: str
     version: str
+    base_url: str | None = None
 
 
 _HOST_PROFILES: Dict[str, HostProfile] = {
@@ -28,6 +29,12 @@ _HOST_PROFILES: Dict[str, HostProfile] = {
 _RUNTIME_PROFILES: Dict[str, RuntimeProfile] = {
     "none": RuntimeProfile(name="none", mode="data_only", version="0"),
     "inmemory": RuntimeProfile(name="inmemory", mode="data_only", version="0"),
+    "mcpblender_http": RuntimeProfile(
+        name="mcpblender_http",
+        mode="data_only",
+        version="0",
+        base_url="http://127.0.0.1:9876",
+    ),
 }
 
 

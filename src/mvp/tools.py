@@ -5,6 +5,7 @@ MCP tools exposed by the M0 stdio server.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Iterable
 
@@ -14,7 +15,13 @@ from mcp import types
 from . import __version__
 from .contracts import Capability, SessionContract
 from .errors import MvpErrorCode, err
-from .runtime import NullRuntimeAdapter, get_runtime, runtime_error
+from .runtime import (
+    ExternalHttpRuntimeAdapter,
+    NullRuntimeAdapter,
+    get_runtime,
+    runtime_error,
+    set_runtime,
+)
 from .profiles import get_host_profile, get_runtime_profile
 
 IGNORED_NAMES = {".git", ".venv", "__pycache__"}
@@ -130,6 +137,9 @@ def register_tools(server: FastMCP, workspace_root: Path) -> None:
         if runtime := get_runtime_profile(runtime_profile):
             resolved["runtime"] = runtime.model_dump()
             runtime_profile_name = runtime.name
+            if runtime.name == "mcpblender_http":
+                base_url = os.getenv("MVP_RUNTIME_URL", runtime.base_url or "http://127.0.0.1:9876")
+                set_runtime(ExternalHttpRuntimeAdapter(base_url))
         else:
             runtime_profile_name = runtime_profile
 

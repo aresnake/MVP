@@ -62,3 +62,8 @@ If you run `python -m mvp.server` directly in a shell, it will log a short remin
 - Install (editable): `python -m pip install -e .`
 - Run stdio server: `./scripts/run_stdio.ps1`
 - Run HTTP + smoke: `./scripts/run_http.ps1 -Port 8765` then `./scripts/smoke_http.ps1 -Port 8765`
+
+### External MCPBLENDER runtime (HTTP)
+- Ensure MCPBLENDER runtime server is running (e.g., `http://127.0.0.1:9876`).
+- Set `MVP_RUNTIME=external_http` and `MVP_RUNTIME_URL=http://127.0.0.1:9876` when starting the MVP server (stdio or http).
+- Create a contract with `runtime_profile: "mcpblender_http"` then call `runtime.probe` or `scene.list_objects` to proxy to the external runtime.

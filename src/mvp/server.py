@@ -20,7 +20,7 @@ from starlette.routing import Route
 
 from . import __version__
 from .errors import MvpErrorCode, err
-from .runtime import InMemoryRuntimeAdapter, set_runtime
+from .runtime import ExternalHttpRuntimeAdapter, InMemoryRuntimeAdapter, set_runtime
 from .tools import register_tools
 
 
@@ -94,6 +94,10 @@ def main() -> None:
     if os.getenv("MVP_RUNTIME", "").lower() == "inmemory":
         set_runtime(InMemoryRuntimeAdapter())
         logging.info("Using in-memory runtime adapter (MVP_RUNTIME=inmemory).")
+    elif os.getenv("MVP_RUNTIME", "").lower() == "external_http":
+        url = os.getenv("MVP_RUNTIME_URL", "http://127.0.0.1:9876")
+        set_runtime(ExternalHttpRuntimeAdapter(url))
+        logging.info("Using external HTTP runtime adapter at %s", url)
     transport = os.getenv("MVP_TRANSPORT", "stdio").lower()
     if transport == "http":
         host = "127.0.0.1"

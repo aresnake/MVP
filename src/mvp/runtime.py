@@ -8,6 +8,8 @@ from typing import Protocol
 
 from mcp import types
 
+import httpx
+
 from .errors import MvpErrorCode, err
 
 
@@ -55,6 +57,39 @@ class InMemoryRuntimeAdapter:
 
     def list_scene_objects(self) -> list[dict]:
         return list(self._objects)
+
+
+class ExternalHttpRuntimeAdapter:
+    """HTTP runtime adapter for external MCP runtime (e.g., MCPBLENDER)."""
+
+    def __init__(self, base_url: str):
+        self.base_url = base_url.rstrip("/")
+
+    def _get_json(self, path: str) -> dict:
+        url = f"{self.base_url}{path}"
+        try:
+            resp = httpx.get(url, timeout=5.0)
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as exc:
+            raise RuntimeUnavailableError(str(exc)) from exc
+
+    def probe(self) -> dict:
+        data = self._get_json("/runtime/probe")
+        if not isinstance(data, dict):
+            raise RuntimeUnavailableError("Invalid response from runtime probe")
+        return data.get("result", data)
+
+    def list_scene_objects(self) -> list[dict]:
+        data = self._get_json("/scene/objects")
+        if not isinstance(data, dict):
+            raise RuntimeUnavailableError("Invalid response from scene objects")
+        objects = data.get("result", data.get("objects", data))
+        if isinstance(objects, dict) and "objects" in objects:
+            objects = objects["objects"]
+        if not isinstance(objects, list):
+            raise RuntimeUnavailableError("Invalid objects payload")
+        return objects
 
 
 _runtime_adapter: RuntimeAdapter = NullRuntimeAdapter()

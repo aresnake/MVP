@@ -1,0 +1,282 @@
+# MCP Blender Core Tool Registry v1 (spec-only; ≤25 tools, under 35 cap)
+
+- name: scene.snapshot
+  summary: Return a structured scene graph snapshot (collections, objects, transforms, materials).
+  inputs:
+    type: object
+    properties:
+      include_mesh_data: { type: boolean, default: false }
+      include_materials: { type: boolean, default: true }
+    additionalProperties: false
+  outputs:
+    type: object
+    properties:
+      ok: { type: boolean }
+      result:
+        type: object
+        properties:
+          scene: { type: object }
+        required: [scene]
+    required: [ok]
+  error_codes: [invalid_arguments, execution_failed, internal_error]
+  determinism: deterministic; ordering is stable.
+  requires: { capabilities: ["snapshot"], blender_min: "4.0.0" }
+  notes: "Headless-friendly; no UI context."
+
+- name: scene.list_collections
+  summary: List collections with hierarchy and object memberships.
+  inputs:
+    type: object
+    properties:
+      include_objects: { type: boolean, default: true }
+    additionalProperties: false
+  outputs:
+    type: object
+    properties:
+      ok: { type: boolean }
+      result: { type: object, properties: { collections: { type: array } }, required: [collections] }
+    required: [ok]
+  error_codes: [invalid_arguments, execution_failed, internal_error]
+  determinism: deterministic; order is topological.
+  requires: { capabilities: ["collections"], blender_min: "4.0.0" }
+
+- name: scene.create_collection
+  summary: Create a collection (or return existing) under an optional parent.
+  inputs:
+    type: object
+    properties:
+      name: { type: string }
+      parent: { type: string, nullable: true }
+    required: [name]
+    additionalProperties: false
+  outputs:
+    type: object
+    properties:
+      ok: { type: boolean }
+      result: { type: object, properties: { name: { type: string } }, required: [name] }
+    required: [ok]
+  error_codes: [invalid_arguments, contract_violation, execution_failed, internal_error]
+  determinism: deterministic; idempotent by name + parent.
+  requires: { capabilities: ["collections"], blender_min: "4.0.0" }
+
+- name: object.create
+  summary: Create an object with a primitive mesh (cube/plane/empty-mesh) data-first.
+  inputs:
+    type: object
+    properties:
+      name: { type: string }
+      primitive: { type: string, enum: ["cube", "plane", "empty_mesh"], default: "cube" }
+      location: { type: array, items: { type: number }, minItems: 3, maxItems: 3, default: [0,0,0] }
+      rotation_euler: { type: array, items: { type: number }, minItems: 3, maxItems: 3, default: [0,0,0] }
+      scale: { type: array, items: { type: number }, minItems: 3, maxItems: 3, default: [1,1,1] }
+      collection: { type: string, nullable: true }
+    required: [name]
+    additionalProperties: false
+  outputs:
+    type: object
+    properties:
+      ok: { type: boolean }
+      result:
+        type: object
+        properties:
+          name: { type: string }
+          location: { type: array, minItems: 3, maxItems: 3 }
+        required: [name, location]
+    required: [ok]
+  error_codes: [invalid_arguments, not_found, contract_violation, execution_failed, internal_error]
+  determinism: deterministic geometry; idempotent by name when primitive unchanged.
+  requires: { capabilities: ["mesh_write"], blender_min: "4.0.0" }
+  notes: "No bpy.ops; data-first mesh creation."
+
+- name: object.move
+  summary: Set or offset object transform.
+  inputs:
+    type: object
+    properties:
+      name: { type: string }
+      mode: { type: string, enum: ["set", "add"], default: "set" }
+      location: { type: array, items: { type: number }, minItems: 3, maxItems: 3 }
+    required: [name, location]
+    additionalProperties: false
+  outputs:
+    type: object
+    properties:
+      ok: { type: boolean }
+      result: { type: object, properties: { name: { type: string }, location: { type: array, minItems: 3, maxItems: 3 }, mode: { type: string } }, required: [name, location, mode] }
+    required: [ok]
+  error_codes: [invalid_arguments, not_found, contract_violation, execution_failed, internal_error]
+  determinism: deterministic given inputs; no UI context.
+  requires: { capabilities: ["transform"], blender_min: "4.0.0" }
+
+- name: object.delete
+  summary: Delete an object by name.
+  inputs:
+    type: object
+    properties:
+      name: { type: string }
+    required: [name]
+    additionalProperties: false
+  outputs:
+    type: object
+    properties: { ok: { type: boolean }, result: { type: object, properties: { deleted: { type: boolean } } } }
+    required: [ok]
+  error_codes: [invalid_arguments, not_found, contract_violation, execution_failed, internal_error]
+  determinism: deterministic; no UI context.
+  requires: { capabilities: ["object_write"], blender_min: "4.0.0" }
+
+- name: object.assign_collection
+  summary: Add object to a collection (non-exclusive).
+  inputs:
+    type: object
+    properties:
+      object: { type: string }
+      collection: { type: string }
+    required: [object, collection]
+    additionalProperties: false
+  outputs:
+    type: object
+    properties: { ok: { type: boolean }, result: { type: object, properties: { assigned: { type: boolean } } } }
+    required: [ok]
+  error_codes: [invalid_arguments, not_found, contract_violation, execution_failed, internal_error]
+  determinism: deterministic; idempotent.
+  requires: { capabilities: ["collections"], blender_min: "4.0.0" }
+
+- name: object.set_parent
+  summary: Set parent/child relationship (keep transform).
+  inputs:
+    type: object
+    properties:
+      child: { type: string }
+      parent: { type: string }
+      keep_transform: { type: boolean, default: true }
+    required: [child, parent]
+    additionalProperties: false
+  outputs:
+    type: object
+    properties: { ok: { type: boolean }, result: { type: object, properties: { child: { type: string }, parent: { type: string } }, required: [child, parent] } }
+    required: [ok]
+  error_codes: [invalid_arguments, not_found, contract_violation, execution_failed, internal_error]
+  determinism: deterministic; no UI context.
+  requires: { capabilities: ["hierarchy"], blender_min: "4.0.0" }
+
+- name: mesh.create_cube
+  summary: Create or replace a cube mesh object data-first.
+  inputs:
+    type: object
+    properties:
+      name: { type: string }
+      size: { type: number, default: 2.0 }
+      location: { type: array, items: { type: number }, minItems: 3, maxItems: 3, default: [0,0,0] }
+    required: [name]
+    additionalProperties: false
+  outputs:
+    type: object
+    properties: { ok: { type: boolean }, result: { type: object, properties: { name: { type: string }, size: { type: number }, location: { type: array, minItems: 3, maxItems: 3 } }, required: [name, location] } }
+    required: [ok]
+  error_codes: [invalid_arguments, contract_violation, execution_failed, internal_error]
+  determinism: deterministic geometry; idempotent by name.
+  requires: { capabilities: ["mesh_write"], blender_min: "4.0.0" }
+
+- name: mesh.create_plane
+  summary: Create or replace a plane mesh object data-first.
+  inputs:
+    type: object
+    properties:
+      name: { type: string }
+      size: { type: number, default: 2.0 }
+      location: { type: array, items: { type: number }, minItems: 3, maxItems: 3, default: [0,0,0] }
+    required: [name]
+    additionalProperties: false
+  outputs:
+    type: object
+    properties: { ok: { type: boolean }, result: { type: object, properties: { name: { type: string }, size: { type: number }, location: { type: array, minItems: 3, maxItems: 3 } }, required: [name, location] } }
+    required: [ok]
+  error_codes: [invalid_arguments, contract_violation, execution_failed, internal_error]
+  determinism: deterministic geometry; idempotent by name.
+  requires: { capabilities: ["mesh_write"], blender_min: "4.0.0" }
+
+- name: object.list
+  summary: List objects with transforms and collection memberships.
+  inputs:
+    type: object
+    properties:
+      collection: { type: string, nullable: true }
+    additionalProperties: false
+  outputs:
+    type: object
+    properties:
+      ok: { type: boolean }
+      result: { type: object, properties: { objects: { type: array } }, required: [objects] }
+    required: [ok]
+  error_codes: [invalid_arguments, not_found, execution_failed, internal_error]
+  determinism: deterministic; ordering stable by name.
+  requires: { capabilities: ["snapshot"], blender_min: "4.0.0" }
+
+- name: material.ensure_principled
+  summary: Ensure a Principled BSDF material with optional base color.
+  inputs:
+    type: object
+    properties:
+      name: { type: string }
+      base_color: { type: array, items: { type: number }, minItems: 3, maxItems: 4, default: [0.8,0.8,0.8,1.0] }
+    required: [name]
+    additionalProperties: false
+  outputs:
+    type: object
+    properties: { ok: { type: boolean }, result: { type: object, properties: { name: { type: string }, base_color: { type: array } }, required: [name] } }
+    required: [ok]
+  error_codes: [invalid_arguments, execution_failed, internal_error]
+  determinism: deterministic; idempotent by name.
+  requires: { capabilities: ["materials"], blender_min: "4.0.0" }
+
+- name: mesh.assign_material
+  summary: Assign a material to an object’s mesh slots (creates slots if absent).
+  inputs:
+    type: object
+    properties:
+      object: { type: string }
+      material: { type: string }
+    required: [object, material]
+    additionalProperties: false
+  outputs:
+    type: object
+    properties: { ok: { type: boolean }, result: { type: object, properties: { assigned: { type: boolean } } } }
+    required: [ok]
+  error_codes: [invalid_arguments, not_found, contract_violation, execution_failed, internal_error]
+  determinism: deterministic; idempotent.
+  requires: { capabilities: ["materials"], blender_min: "4.0.0" }
+
+- name: selection.set_active_object
+  summary: Set logical active object by name (data signal; not UI state).
+  inputs:
+    type: object
+    properties:
+      name: { type: string }
+    required: [name]
+    additionalProperties: false
+  outputs:
+    type: object
+    properties: { ok: { type: boolean }, result: { type: object, properties: { active: { type: string } }, required: [active] } }
+    required: [ok]
+  error_codes: [invalid_arguments, not_found, contract_violation, execution_failed, internal_error]
+  determinism: deterministic; no UI reliance.
+  requires: { capabilities: ["selection"], blender_min: "4.0.0" }
+
+- name: scenegraph.find
+  summary: Query objects by name pattern or collection.
+  inputs:
+    type: object
+    properties:
+      name_pattern: { type: string, nullable: true }
+      collection: { type: string, nullable: true }
+      limit: { type: integer, default: 50 }
+    additionalProperties: false
+  outputs:
+    type: object
+    properties: { ok: { type: boolean }, result: { type: object, properties: { matches: { type: array } }, required: [matches] } }
+    required: [ok]
+  error_codes: [invalid_arguments, not_found, execution_failed, internal_error]
+  determinism: deterministic; ordering stable by name.
+  requires: { capabilities: ["snapshot"], blender_min: "4.0.0" }
+
+# Tool count: 15 (leaves headroom under the 35-tool cap).

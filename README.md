@@ -37,3 +37,8 @@ If you run `python -m mvp.server` directly in a shell, it will log a short remin
 - Create a contract by calling `contract.create` with `host_profile`, `runtime_profile`, optional `capabilities` (DATA_ONLY/UI_LIVE), and optional `tool_allowlist`.
 - When `tool_allowlist` is set, only listed tools run; others return `code: tool_not_allowed`.
 - Example (PowerShell + MCP client): start server with `python -m mvp.server`, then from the client call `contract.create` with `{"host_profile":"dev","runtime_profile":"rt","capabilities":["DATA_ONLY"],"tool_allowlist":["workspace.list_files"]}` before invoking `workspace.list_files`.
+
+## Runtime Adapter
+- MVP ships with no real runtime; adapters are injected.
+- Default adapter is null and returns `runtime_unavailable`; runtime tools are still gated by session contracts and capabilities (DATA_ONLY).
+- An in-memory adapter is available for tests/dev via `MVP_RUNTIME=inmemory` environment variable when starting the server; real runtimes (e.g., Blender) would live outside this core.

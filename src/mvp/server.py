@@ -5,12 +5,14 @@ Minimal MCP stdio server exposing the M0 tool surface.
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
 from . import __version__
+from .runtime import InMemoryRuntimeAdapter, set_runtime
 from .tools import register_tools
 
 
@@ -30,6 +32,9 @@ def build_server(workspace_root: Path | None = None) -> FastMCP:
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     server = build_server()
+    if os.getenv("MVP_RUNTIME", "").lower() == "inmemory":
+        set_runtime(InMemoryRuntimeAdapter())
+        logging.info("Using in-memory runtime adapter (MVP_RUNTIME=inmemory).")
     logging.info("MVP stdio server expects a MCP client (Claude Desktop, Codex, etc.). Waiting on stdio...")
     try:
         server.run(transport="stdio")

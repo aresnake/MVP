@@ -268,4 +268,15 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
+    # Dev mode: when stdin is a TTY, avoid JSON-RPC parsing by running a local self-test.
+    if sys.stdin.isatty():
+        try:
+            dev_result = run_blender_move_cube()
+        except Exception as exc:  # pragma: no cover - defensive guard
+            dev_result = _return_error("dev_exception", "Exception during dev self-test.", str(exc))
+
+        print("MVP_DEV_RESULT=" + json.dumps(dev_result, separators=(",", ":")))
+        sys.exit(0 if dev_result.get("ok") else 1)
+
+    # Normal MCP stdio server for Claude Desktop.
     anyio.run(main)

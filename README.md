@@ -1,20 +1,25 @@
-# MCP Blender Core
+# MVP — MCP Blender (Spec-first)
 
-Standard MCP stack for Blender, built contract-first and data-first to let any LLM host drive Blender deterministically.
+This repository is a spec-first MVP for an industrial-grade **MCP Blender** stack.
 
-## Product definition
-- **MCP Blender Core**: the MCP server exposing Blender contracts, tools, and schemas; no Blender embedding, no UI.
-- **Blender Bridge**: the thin Blender-side connector that speaks the contracts and enforces immutable data fingerprints.
+## Product split
+- **MCP Blender Core**: MCP-facing contracts, schemas, tool policy, version-awareness, and deterministic macro rules.
+- **Blender Bridge**: Blender-coupled execution layer (addon/bridge), driven by contracts. UI is optional via contract.
 
 ## Principles
-- Contract-first, data-first; UI is optional and derived from the contract.
-- Tool surface capped at 35 to keep coordination and audits tractable.
-- Immutable knowledge banks and fingerprints; reproducible runs.
-- No autonomous agent logic or hidden behaviors.
+- **Contract-first**: define contracts and error model before runtime.
+- **Data-first**: prefer deterministic data APIs; ops/UI is optional and gated by contract.
+- **Tool surface ≤ 35**: curated, stable tools; everything else is composed as macros.
+- **Immutable banks/fingerprints**: reproducibility, traceability, versioned profiles.
 
 ## Status
-Pre-design. No runtime or bridge committed yet.
+**Pre-design / spec-first.** No runtime server/bridge implementation is included yet.
 
-## Legacy repos (historical reference)
-- https://github.com/aresnake/MCPBLA-mirror
-- https://github.com/aresnake/MCPBLENDER
+## Legacy / history
+This repo replaces earlier experimental repos/branches; the MVP is now intentionally spec-first to avoid divergence.
+
+See:
+- docs/PRODUCT.md
+- docs/SCOPE.md
+- docs/ARCHITECTURE.md
+- docs/TOOLING_POLICY.md

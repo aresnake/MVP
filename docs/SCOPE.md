@@ -1,26 +1,21 @@
-# Scope — v1
+# SCOPE
 
 ## Goals
-- Deliver contract-first definitions for MCP Blender Core and the Blender Bridge.
-- Keep tool surface ≤35 with clear naming, semantics, and error contracts.
-- Enforce data-first flows with immutable fingerprints and version-aware schemas.
-- Make UI optional by ensuring every interaction is defined via contract.
-- Provide clarity for host integration: LLM host ↔ MCP core ↔ bridge ↔ Blender.
+- Define v1 contracts, schemas, and policies for MCP Blender Core + Blender Bridge.
+- Keep tool surface ≤35 and compose complexity as deterministic macros.
+- Make version-awareness explicit (Blender version, host profile, feature flags).
+- Define immutable banks/fingerprints for traceability and reproducibility.
 
-## Non-goals
-- No autonomous agent logic or planner baked into the core.
-- No Blender UI implementation or custom panels.
-- No bundling of Blender inside the MCP server.
-- No business logic or creative “auto-magic” inside tools.
+## Non-goals (v1)
+- No full runtime MCP server implementation.
+- No HTTP bridge, sockets, or persistent background services.
+- No “auto-magic” agents; orchestration must be contract-driven and testable.
 
 ## Out-of-scope
-- Networked asset stores or cloud sync features.
-- Proprietary render pipelines or studio-specific tooling.
-- Security hardening beyond contract-level guardrails.
-- Performance tuning for large scenes.
+- Asset generation pipelines, full production UX, and provider orchestration details.
+- Long-running scene watchers, passive learning, or telemetry pipelines.
 
-## Future (tracked, not for v1)
-- Deterministic macro library layered atop the core tool set.
-- Versioned knowledge banks with promotion workflows.
-- Hosted observability and policy enforcement.
-- UI scaffolding that renders directly from the contracts.
+## Future
+- Implement Core runtime (stdio/HTTP) strictly from contracts.
+- Implement Bridge execution + probes (headless first, UI optional).
+- Add banks (ops/context/RNA) and deterministic macro library with tests.

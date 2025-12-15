@@ -1,1 +1,3 @@
-Headless test strategy will be added once contracts stabilize.
+# tests/
+
+Headless tests strategy will live here (later).

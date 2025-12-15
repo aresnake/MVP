@@ -57,3 +57,8 @@ If you run `python -m mvp.server` directly in a shell, it will log a short remin
 
 ## Tool catalog
 - `system.tools_catalog` (not gated) lists available tools with descriptions, gating flags (requires contract, required capabilities, allowlist respected), and minimal input/output schemas.
+
+## Quickstart
+- Install (editable): `python -m pip install -e .`
+- Run stdio server: `./scripts/run_stdio.ps1`
+- Run HTTP + smoke: `./scripts/run_http.ps1 -Port 8765` then `./scripts/smoke_http.ps1 -Port 8765`

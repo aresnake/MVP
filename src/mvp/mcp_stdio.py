@@ -1,7 +1,8 @@
 """Minimal MCP stdio server exposing a single Blender move-cube tool.
 
-The tool launches Blender headless, creates (or reuses) a cube, applies a delta,
-and returns deterministic JSON. No runtime sidecar or HTTP bridge is used.
+The tool launches Blender headless, creates (or reuses) a cube, applies a delta with explicit
+semantics, and returns deterministic JSON. No runtime sidecar or HTTP bridge is used; each call is
+isolated with no inter-call persistence.
 """
 
 from __future__ import annotations
@@ -22,17 +23,22 @@ from mcp.types import ServerCapabilities, TextContent, Tool, ToolsCapability
 RUNTIME_DIR = Path(__file__).resolve().parents[2] / ".runtime"
 DEFAULT_NAME = "MVP_Cube"
 DEFAULT_DELTA = [0.0, 0.0, 2.0]
+DEFAULT_MODE = "set"
 
 
 def _return_error(code: str, message: str, details: Any = None) -> dict[str, Any]:
     return {"ok": False, "error": {"code": code, "message": message, "details": details}}
 
 
-def _resolve_blender_executable(provided: str | None) -> str | None:
+def _resolve_blender_executable(provided: str | None, *, allow_fallback: bool = True) -> str | None:
     """Resolve blender executable path from argument, env, or common install paths."""
     candidates: list[str] = []
     if provided:
         candidates.append(provided)
+        if not allow_fallback:
+            # Only check the provided path; no additional candidates.
+            return candidates[0] if Path(candidates[0]).is_file() else None
+
     env_path = os.environ.get("BLENDER_EXE")
     if env_path:
         candidates.append(env_path)
@@ -49,7 +55,7 @@ def _resolve_blender_executable(provided: str | None) -> str | None:
     return None
 
 
-def _write_move_cube_script(path: Path, name: str, delta: Sequence[float]) -> None:
+def _write_move_cube_script(path: Path, name: str, delta: Sequence[float], mode: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     script = f"""\
 import bpy
@@ -57,6 +63,7 @@ import json
 
 NAME = {name!r}
 DELTA = ({float(delta[0])}, {float(delta[1])}, {float(delta[2])})
+MODE = {mode!r}
 
 
 def ensure_cube(target_name: str):
@@ -93,23 +100,31 @@ def ensure_cube(target_name: str):
     return obj
 
 
-def move_cube(target_name: str, delta):
+def move_cube(target_name: str, delta, mode: str):
     obj = ensure_cube(target_name)
-    obj.location.x += delta[0]
-    obj.location.y += delta[1]
-    obj.location.z += delta[2]
+    if mode == "set":
+        obj.location.x = delta[0]
+        obj.location.y = delta[1]
+        obj.location.z = delta[2]
+    elif mode == "add":
+        obj.location.x += delta[0]
+        obj.location.y += delta[1]
+        obj.location.z += delta[2]
+    else:
+        raise ValueError(f"Unsupported mode: {{mode}}")
     return obj
 
 
 def main():
     try:
-        cube = move_cube(NAME, DELTA)
+        cube = move_cube(NAME, DELTA, MODE)
         result = {{
             "ok": True,
             "result": {{
                 "name": cube.name,
                 "position": list(cube.location),
                 "blender_version": bpy.app.version_string,
+                "mode": MODE,
             }},
         }}
     except Exception as exc:
@@ -128,10 +143,13 @@ if __name__ == "__main__":
 
 
 def run_blender_move_cube(
-    name: str = DEFAULT_NAME, delta: Sequence[float] = DEFAULT_DELTA, blender_exe: str | None = None
+    name: str = DEFAULT_NAME,
+    delta: Sequence[float] = DEFAULT_DELTA,
+    blender_exe: str | None = None,
+    mode: str = DEFAULT_MODE,
 ) -> dict[str, Any]:
     """Blocking helper that launches Blender, moves a cube, and returns parsed JSON."""
-    blender_path = _resolve_blender_executable(blender_exe)
+    blender_path = _resolve_blender_executable(blender_exe, allow_fallback=blender_exe is None)
     if not blender_path:
         return _return_error(
             code="blender_not_found",
@@ -140,7 +158,7 @@ def run_blender_move_cube(
         )
 
     script_path = RUNTIME_DIR / "move_cube.py"
-    _write_move_cube_script(script_path, name, delta)
+    _write_move_cube_script(script_path, name, delta, mode)
 
     proc = subprocess.run(
         [
@@ -191,7 +209,10 @@ async def list_tools() -> list[Tool]:
     return [
         Tool(
             name="blender_move_cube",
-            description="Launch Blender headless, create or reuse a cube, apply a delta, and report its position.",
+            description=(
+                "Launch Blender headless, create or reuse a cube, apply a delta (mode=set|add), "
+                "and report its position. Calls are isolated; no inter-call persistence."
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -202,6 +223,12 @@ async def list_tools() -> list[Tool]:
                         "minItems": 3,
                         "maxItems": 3,
                         "default": DEFAULT_DELTA,
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": ["set", "add"],
+                        "default": DEFAULT_MODE,
+                        "description": "set=assign location to delta; add=offset location by delta within this call.",
                     },
                     "blender_exe": {
                         "type": "string",
@@ -221,8 +248,9 @@ async def list_tools() -> list[Tool]:
                             "name": {"type": "string"},
                             "position": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
                             "blender_version": {"type": "string"},
+                            "mode": {"type": "string"},
                         },
-                        "required": ["name", "position", "blender_version"],
+                        "required": ["name", "position", "blender_version", "mode"],
                     },
                     "error": {"type": "object"},
                 },
@@ -241,12 +269,23 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> Iterable[TextConten
     cube_name = arguments.get("name", DEFAULT_NAME)
     delta = arguments.get("delta", DEFAULT_DELTA)
     blender_exe = arguments.get("blender_exe")
+    mode = arguments.get("mode", DEFAULT_MODE)
 
     # Normalize delta to three floats
     if not isinstance(delta, (list, tuple)) or len(delta) != 3:
         return _return_error(code="invalid_delta", message="delta must be an array of three numbers.", details=delta)
 
-    result = await anyio.to_thread.run_sync(run_blender_move_cube, cube_name, delta, blender_exe)
+    if mode not in ("set", "add"):
+        return _return_error(code="invalid_mode", message="mode must be 'set' or 'add'.", details=mode)
+
+    if blender_exe is not None and not Path(blender_exe).is_file():
+        return _return_error(
+            code="blender_not_found",
+            message="Blender executable was not found at the provided path.",
+            details=blender_exe,
+        )
+
+    result = await anyio.to_thread.run_sync(run_blender_move_cube, cube_name, delta, blender_exe, mode)
     if result.get("ok", False):
         return result
     return _return_error(code=result["error"]["code"], message=result["error"]["message"], details=result["error"].get("details"))

@@ -1,20 +1,19 @@
-# Blender MCP Core
+# MCP Blender Core
 
-Blender MCP Core infrastructure (standard MCP) for a data-first Blender runtime.
+Standard MCP stack for Blender, built contract-first and data-first to let any LLM host drive Blender deterministically.
+
+## Product definition
+- **MCP Blender Core**: the MCP server exposing Blender contracts, tools, and schemas; no Blender embedding, no UI.
+- **Blender Bridge**: the thin Blender-side connector that speaks the contracts and enforces immutable data fingerprints.
 
 ## Principles
-- Minimal MCP tool surface
-- Data-first Blender runtime
-- UI live optional via contract
-- Immutable knowledge banks
-
-## Non-goals
-- No autonomous agent logic
-- No "magic addon"
-- No business logic inside MCP tools
+- Contract-first, data-first; UI is optional and derived from the contract.
+- Tool surface capped at 35 to keep coordination and audits tractable.
+- Immutable knowledge banks and fingerprints; reproducible runs.
+- No autonomous agent logic or hidden behaviors.
 
 ## Status
-Pre-design phase (no implementation yet).
+Pre-design. No runtime or bridge committed yet.
 
 ## Legacy repos (historical reference)
 - https://github.com/aresnake/MCPBLA-mirror

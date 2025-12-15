@@ -9,3 +9,6 @@ This directory holds the MCP Blender Core v1 specifications (contract-first, dat
 - `tool_registry_v1.yaml`: curated v1 tool registry (≤25 tools; under the 35 cap).
 - `macro_registry_v1.md`: deterministic macro definition and examples.
 - `versioning_policy_v1.md`: versioning and compatibility rules.
+- `execution_model_v1.md`: execution phases, atomicity, timeouts, refusals.
+- `scene_state_v1.md`: scene snapshot structure for consistent reads.
+- `determinism_rules_v1.md`: determinism classes, seeds, ordering, tolerances.
